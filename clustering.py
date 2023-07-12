@@ -1,3 +1,9 @@
+# This algorithm is very similar to the CFICA algorithm. The key difference is the introduction 
+# of the concept of outlier.
+# Author: Boubacar Sow
+# Date: July 10, 2023
+# Copyright (c) 2023 Boubacar Sow
+
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -5,6 +11,16 @@ import math
 
 class ProposedApproach:
     def __init__(self, data, first_batch_size, batch_size, distance_threshold=2, merging_threshold=1):
+
+        """
+        Initializes the ProposedApproach class.
+        
+        :param data: The data to be clustered.
+        :param first_batch_size: The size of the first batch of data to be used for initialization.
+        :param batch_size: The size of each subsequent batch of data to be used for clustering.
+        :param distance_threshold: The threshold (to add to add to the maximum distance) for adding a point to a cluster.
+        :param merging_threshold: The threshold for merging two clusters.
+        """
         self.data = data
         self.first_batch_size = first_batch_size
         self.batch_size = batch_size
@@ -19,7 +35,13 @@ class ProposedApproach:
         self.labels = []
         self.outliers = []
         self.clusters = []
+
+
     def find_optimal_k(self):
+
+        """
+        Finds the optimal number of clusters based on the highest silhouette score.
+        """
         X_batch = self.data[:self.first_batch_size]
         silhouette_scores = []
         k_range = range(2, 10)
@@ -28,12 +50,16 @@ class ProposedApproach:
             labels = kmeans.fit_predict(X_batch)
             score = silhouette_score(X_batch, labels)
             silhouette_scores.append(score)
+
         # Find the optimal number of clusters based on the highest silhouette score
         self.k = k_range[np.argmax(silhouette_scores)]
 
-        print("Number of clusters: ", self.k)
-        
+
     def cluster_outliers(self):
+
+        """
+        Clusters the outliers using KMeans.
+        """
         data_to_cluster = np.concatenate(self.clusters)
         data_to_cluster = np.vstack([data_to_cluster, self.outliers])
         kmeans = KMeans(n_clusters=self.k, n_init=10, random_state=42, init=self.centroids).fit(data_to_cluster)
@@ -53,21 +79,36 @@ class ProposedApproach:
         # Compute p_farthest points for each cluster
         self.cluster_features = [(mean, np.array(cluster)[np.argsort(np.linalg.norm(cluster - mean, axis=1))[-1:-self.p:-1]]) for mean, cluster in zip(self.centroids, self.clusters)]
 
+
     def initialize_clustering(self):
+
+        """
+        Initializes the clustering process by running KMeans on the first batch of data.
+        """
         kmeans = KMeans(n_clusters=self.k, n_init=10).fit(self.data[:self.first_batch_size])
+        # Create clusters based on KMeans labels
         self.clusters = [self.data[:self.first_batch_size][kmeans.labels_ == i] for i in range(self.k)]
+        
+        # Compute the centroids of each cluster
         self.centroids = kmeans.cluster_centers_
+        
+        # Compute the labels
         self.labels = kmeans.labels_.tolist()
-        print("Labels: ", np.unique(self.labels, return_counts=True))
+
         # Compute p_farthest points for each cluster
         self.cluster_features = [(mean, cluster[np.argsort(np.linalg.norm(cluster - mean, axis=1))[-1:-self.p:-1]]) for mean, cluster in zip(self.centroids, self.clusters)]
 
+        # Compute max_distances for each cluster
         for i in range(self.k):
             distances = np.linalg.norm(self.clusters[i] - self.centroids[i], axis=1)
             self.max_distances.append(np.percentile(distances, 95))
 
 
     def fit(self):
+
+        """
+        Fits the ProposedApproach model to the data.
+        """
         self.find_optimal_k()
         self.initialize_clustering()
         num_batches = math.ceil((len(self.data) - self.first_batch_size) / self.batch_size)
@@ -90,11 +131,16 @@ class ProposedApproach:
                         min_cluster_index = i
 
                 if np.linalg.norm(point - self.centroids[min_cluster_index]) < self.max_distances[min_cluster_index]:
+                    # Add point to the closest cluster
                     self.clusters[min_cluster_index] = np.vstack([self.clusters[min_cluster_index], point])
                     self.labels.append(min_cluster_index)
+
+                    # Update centroid and p_farthest points for the closest cluster
                     self.centroids[min_cluster_index] = np.mean(self.clusters[min_cluster_index], axis=0)
+
                     if len(self.clusters[min_cluster_index]) >= 30:
                         self.max_distances[min_cluster_index] = np.max(np.linalg.norm(self.clusters[min_cluster_index] - self.centroids[min_cluster_index], axis=1))
+
                     # Update cluster features
                     mean = np.mean(self.clusters[min_cluster_index], axis=0)
                     points = self.clusters[min_cluster_index]
@@ -102,10 +148,10 @@ class ProposedApproach:
                     self.cluster_features[min_cluster_index] = (mean, p_farthest_points)
             
                 elif np.linalg.norm(point - self.centroids[min_cluster_index]) < self.max_distances[min_cluster_index] + self.distance_threshold:
+                    # Add point to the outliers
                     self.outliers.append(point)
                     self.labels.append(-1)
                     if len(self.outliers) > 200:
-                        print("Clustering outliers")
                         self.cluster_outliers()
                         self.outliers = []
                 else:
@@ -121,9 +167,6 @@ class ProposedApproach:
 
             # Compute the mean for each cluster
             self.centroids = [np.mean(cluster, axis=0) for cluster in self.clusters]
-
-            # Plot clusters and centroids
-            #plot_clusters_and_centroids_3d(self.clusters, self.centroids)
 
             # Merge closest clusters after processing a batch
             while True:
