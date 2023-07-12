@@ -1,3 +1,9 @@
+# An Adaptive Incremental CLustering Method Based on the Growing Neural Gas Algorithm
+# Author: Boubacar Sow
+# Date: July 10, 2023
+# Copyright (c) 2023 Boubacar Sow
+
+
 from collections import defaultdict
 import random
 import numpy as np
@@ -7,6 +13,12 @@ import math
 class AING:
     
     def __init__(self, up_bound):
+
+        """
+        Initializes the AING class.
+        
+        :param up_bound: The upper bound on the number of neurons in the graph.
+        """
         self.up_bound = up_bound
         self.k = 0
         self.G = defaultdict(dict)
@@ -14,6 +26,12 @@ class AING:
     
 
     def fit(self, data):
+
+        """
+        Fits the AING model to the data.
+        
+        :param data: The data to be clustered.
+        """
         # Initializing the graph with the first two nb_points
         self.G[0]['w'] = data[0]
         self.G[1]['w'] = data[1]
@@ -65,17 +83,22 @@ class AING:
                     self.connect(y_new, y1)
                     #print("COnnecting ", y_new, " to ", y1)
                 else:
-                    #print("Moving")
-                    #print("Values Ty1: ", Ty1, " Ty2: ", Ty2)
+                    
                     # increase the age of edges emanating from y1
                     for n in self.neighbors(y1):
                         self.G[y1][n]['age'] += 1
+
+                    # update nb_points and sum_distances for y1 and its neighbors
                     self.G[y1]['nb_points'] += 1
                     self.G[y1]['points'].append(x)
                     self.G[y1]['sum_distances'] += np.linalg.norm(x - self.G[y1]['w'])
+
                     e_b = 1 / (self.assigned_data_nb_points(y1))
                     e_n = 1 / (100 * (self.assigned_data_nb_points(y1)))
-                    self.G[y1]['w'] += e_b * (x - self.G[y1]['w'])
+
+                    # update reference vectors for y1 and its neighbors
+                    self.G[y1]['w'] += e_b * (x - self.G[y1]['w']) 
+
                     for n in self.neighbors(y1):
                         self.G[n]['w'] += e_n * (x - self.G[n]['w'])
 
@@ -89,17 +112,23 @@ class AING:
                             if j in self.G[i] and   'age' in self.G[i][j] and self.G[i][j]['age'] > nmax:
                                 del self.G[i][j]
                                 del self.G[j][i]
-                                print("Deleting edge ", i, " ", j)
 
             while len(self.G) > self.up_bound:
                 # some of the nb_points in the graph
                 self.k += self.d_bar
                 self.G = self.merge(self.k, self.G)
 
+
     def compute_threshold(self, y):
+
+        """
+        Computes the threshold for adding a point to a cluster.
+        
+        :param y: The index of the cluster.
+        :return: The threshold for adding a point to the cluster.
+        """
         if self.G[y]['nb_points'] > 0 or len(self.neighbors(y)) > 0:
             sum_dists = self.G[y]['sum_distances']
-            #sum_weighted_dists = sum([len(self.G[e]['points']) * np.linalg.norm(self.G[y]['w'] - self.G[e]['w']) for e in self.neighbors(y)])
             sum_weighted_dists = sum([self.G[e]['nb_points'] * np.linalg.norm(self.G[y]['w'] - self.G[e]['w']) for e in self.neighbors(y)])
             total_dists = self.G[y]['nb_points'] + sum([self.G[e]['nb_points'] for e in self.neighbors(y)])
             if total_dists == 0:
@@ -113,13 +142,34 @@ class AING:
             Ty = min_dist / 2
         return Ty+.5
 
+
     def assigned_data_nb_points(self, y):
+        """
+        Returns the number of data points assigned to a cluster.
+        
+        :param y: The index of the cluster.
+        :return: The number of data points assigned to the cluster.
+        """
         return self.G[y]['nb_points']
     
+
     def neighbors(self, y):
-        return [n for n in self.G[y] if n != 'w' and n != 'nb_points' and n!='sum_distances' and n !='points']
+        """
+        Returns the neighbors of a cluster.
+        
+        :param y: The index of the cluster.
+        :return: A list of indices of neighboring clusters.
+        """
+        return [n for n in self.G[y] if n != 'w' and n != 'nb_points' and n != 'sum_distances' and n != 'points']
     
+
     def connect(self, i, j):
+        """
+        Connects two clusters by an edge.
+        
+        :param i: The index of the first cluster.
+        :param j: The index of the second cluster.
+        """
         if j not in self.G[i]:
             self.G[i][j] = {'age': 0}
             self.G[j][i] = {'age': 0}
@@ -128,8 +178,23 @@ class AING:
             self.G[j][i]['age'] = 0
         
     def merge(self, k, G):
-    
+        
+        """
+        Merges clusters in the graph until the number of clusters is less than or equal to the upper bound.
+        
+        :param k: The merging threshold.
+        :param G: The graph to be merged.
+        :return: The merged graph.
+        """
         def connect(i, j, graph):
+
+            """
+            Connects two clusters by an edge.
+            
+            :param i: The index of the first cluster.
+            :param j: The index of the second cluster.
+            :param graph: The graph to be modified.
+            """
             if j not in graph[i]:
                 graph[i][j] = {'age': 0}
                 graph[j][i] = {'age': 0}
@@ -138,26 +203,37 @@ class AING:
                 graph[j][i]['age'] = 0
 
         def neighbors(y, graph):
+            """
+            Returns the neighbors of a cluster.
+            
+            :param y: The index of the cluster.
+            :param graph: The graph to be searched.
+            :return: A list of indices of neighboring clusters.
+            """
             return [n for n in graph[y] if n != 'w' and n != 'nb_points' and n!='sum_distances' and n !='points']
 
         G_new = defaultdict(dict)
         # Initialize G_new with two neurons chosen randomly from G
         neurons = list(G.keys())
         random_neurons = random.sample(neurons, 2)
+
         for i, neuron in enumerate(random_neurons):
             G_new[i] = {}
             G_new[i]['w'] = G[neuron]['w']
             G_new[i]['nb_points'] = G[neuron]['nb_points']
             G_new[i]['points'] = G[neuron]['points']
             G_new[i]['sum_distances'] = G[neuron]['sum_distances']
+
             G.pop(neuron)
 
         for y in G:
             # Find the two nearest neurons from y in G_new
             dists = [np.linalg.norm(G[y]['w'] - G_new[i]['w']) for i in G_new.keys()]
             y1, y2 = np.argsort(dists)[:2]
+
             d1 = dists[y1]
             d2 = dists[y2]
+            
             y1, y2 = list(G_new.keys())[y1], list(G_new.keys())[y2]
 
             if random.uniform(0, 1) < min(G[y]['nb_points'] * d1 / k, 1):
@@ -188,11 +264,13 @@ class AING:
                     e_b = 1 / (G_new[y1]['nb_points'])
                     e_n = 1 / (100 * (G_new[y1]['nb_points']))
                     G_new[y1]['w'] += e_b * (G[y]['w'] - G_new[y1]['w'])
+
                     for n in neighbors(y1, G_new):
                         G_new[n]['w'] += e_n * (G[y]['w'] - G_new[n]['w'])
 
                     # Connect y1 to y2 by a new edge
                     connect(y1, y2, G_new)
+                    
                     # Remove old edges from G_new if any
                     for i in G_new:
                         for j in G_new:
