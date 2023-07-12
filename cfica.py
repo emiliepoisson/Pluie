@@ -17,7 +17,7 @@ class CFICA:
         :param data: The data to be clustered.
         :param first_batch_size: The size of the first batch of data to be used for initialization.
         :param batch_size: The size of each subsequent batch of data to be used for clustering.
-        :param distance_threshold: The threshold (to add to the maximum distance of the cluster) for adding a point to a cluster.
+        :param distance_threshold: The threshold for adding a point to a cluster.
         :param merging_threshold: The threshold for merging two clusters.
         """
         self.data = data
