@@ -106,7 +106,7 @@ class CFICA:
                     # Update cluster features
                     mean = np.mean(self.clusters[min_cluster_index], axis=0)
                     distances = np.linalg.norm(self.clusters[min_cluster_index] - mean, axis=1)
-                    third_quartile_plus_sigma = np.percentile(distances, 100) #+ np.std(distances)
+                    third_quartile_plus_sigma = np.percentile(distances, 75) + np.std(distances)
                     non_outlier_points = self.clusters[min_cluster_index][distances < third_quartile_plus_sigma]
                     cluster_size = len(non_outlier_points)
                     num_farthest_points = min(cluster_size, self.p)  # Adjust the number of farthest points based on the cluster size
