@@ -29,7 +29,7 @@ for (i in 1:6) { #6 echantillons
   SIMZP <- computeGaussianSimilarityZP(data2)
   SIM2=(SIMZP^alpha)*(Q^(1-alpha))
   RES2= spectralClusteringNg(SIM2,K=12) #nombre de cluster modifiable
-  plot(6576*(i-1)+1:6576*i,data$TSL_mean[6576*(i-1)+1:6576*i],col=RES2$label,ylim=c(0,8))
+  plot(6576*(i-1)+1:6576*i,data$TSL_mean,col=RES2$label,ylim=c(0,8))
   lines(d$Rgage[6576*(i-1)+1:6576*i],col="green")
   Clust_F1=c(Clust_F1,list(RES2$label))
 }
