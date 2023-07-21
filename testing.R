@@ -13,7 +13,7 @@ data=dataimp$output
 data2=dataimp3$output
 
 for (i in 1:6) {
-  focus=(6576*(i-1)+1):(6576*i)
+  focus=(6576*(i-1)+1):(6576*i)#cet intevalle doit etre conforme avec la taille du fichier
   dapp=data.frame(t=focus,s=data$d.TSL_mean[focus],r=data$d.RSL_mean[focus])
   labelAPP=Clust[focus]
   dtest=data.frame(t=focus,s=data2$d2.TSL_mean[focus],r=data2$d2.RSL_mean[focus])
