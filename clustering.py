@@ -54,12 +54,12 @@ class ProposedApproach:
         # Find the optimal number of clusters based on the highest silhouette score
         self.k = k_range[np.argmax(silhouette_scores)]
 
-
     def cluster_outliers(self):
-
         """
         Clusters the outliers using KMeans.
         """
+        if len(self.outliers) == 0:
+            return
         data_to_cluster = np.concatenate(self.clusters)
         data_to_cluster = np.vstack([data_to_cluster, self.outliers])
         kmeans = KMeans(n_clusters=self.k, n_init=10, random_state=42, init=self.centroids).fit(data_to_cluster)
@@ -74,7 +74,7 @@ class ProposedApproach:
         for i in range(self.k):
             if len(self.clusters[i]) >= 30:
                 distances = np.linalg.norm(self.clusters[i] - self.centroids[i], axis=1)
-                self.max_distances[i] = np.percentile(distances, 95)
+                self.max_distances[i] = np.percentile(distances, 100)
         
         # Compute p_farthest points for each cluster
         self.cluster_features = [(mean, np.array(cluster)[np.argsort(np.linalg.norm(cluster - mean, axis=1))[-1:-self.p:-1]]) for mean, cluster in zip(self.centroids, self.clusters)]
@@ -131,27 +131,22 @@ class ProposedApproach:
                         min_cluster_index = i
 
                 if np.linalg.norm(point - self.centroids[min_cluster_index]) < self.max_distances[min_cluster_index]:
-                    # Add point to the closest cluster
                     self.clusters[min_cluster_index] = np.vstack([self.clusters[min_cluster_index], point])
                     self.labels.append(min_cluster_index)
-
-                    # Update centroid and p_farthest points for the closest cluster
                     self.centroids[min_cluster_index] = np.mean(self.clusters[min_cluster_index], axis=0)
-
-                    if len(self.clusters[min_cluster_index]) >= 30:
+                    if len(self.clusters[min_cluster_index]) >= 60:
                         self.max_distances[min_cluster_index] = np.max(np.linalg.norm(self.clusters[min_cluster_index] - self.centroids[min_cluster_index], axis=1))
-
                     # Update cluster features
                     mean = np.mean(self.clusters[min_cluster_index], axis=0)
                     points = self.clusters[min_cluster_index]
                     p_farthest_points = points[np.argsort(np.linalg.norm(points - mean, axis=1))[-1:-len(points)-1:-1]]
                     self.cluster_features[min_cluster_index] = (mean, p_farthest_points)
-            
+                    self.centroids[min_cluster_index] = mean
                 elif np.linalg.norm(point - self.centroids[min_cluster_index]) < self.max_distances[min_cluster_index] + self.distance_threshold:
-                    # Add point to the outliers
                     self.outliers.append(point)
                     self.labels.append(-1)
                     if len(self.outliers) > 200:
+                        print("Clustering outliers")
                         self.cluster_outliers()
                         self.outliers = []
                 else:
@@ -167,6 +162,9 @@ class ProposedApproach:
 
             # Compute the mean for each cluster
             self.centroids = [np.mean(cluster, axis=0) for cluster in self.clusters]
+
+            # Plot clusters and centroids
+            #plot_clusters_and_centroids_3d(self.clusters, self.centroids)
 
             # Merge closest clusters after processing a batch
             while True:
